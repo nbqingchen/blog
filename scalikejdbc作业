@@ -1,0 +1,82 @@
+要求：
+1、定义一个User类，int id，string name，int age
+2、通过scalikejdbc进行读写
+  1) 保存一个 User对象到mysql数据库
+  2) 把数据库中的user记录查询出来
+3、使用idea+maven+scala搞定
+
+先设置pom.xml
+      <!-- 设置参考http://mvnrepository.com/artifact/org.scalikejdbc/scalikejdbc_2.11/2.5.2-->
+      <!-- 设置跟sbt有所区别，不能完全把官网sbt上设置内容照搬过来-->
+      <dependency>
+          <groupId>org.scalikejdbc</groupId>
+          <artifactId>scalikejdbc_2.11</artifactId>
+          <version>2.5.2</version>
+      </dependency>
+      <dependency>
+          <groupId>com.h2database</groupId>
+          <artifactId>h2</artifactId>
+          <version>1.4.197</version>
+      </dependency>
+      <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.2.3</version>
+      </dependency>
+      <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>8.0.11</version>
+      </dependency>
+      <!--需要新添加一个仓库，不然mysql的依赖包搜索不到-->
+      <repository>
+          <id>maven</id>
+          <name>Maven Repository</name>
+          <url>http://repo1.maven.org/maven2</url>
+      </repository>
+      
+ 代码部分
+ package com.peace.scala
+import scalikejdbc._
+object scalikejdbcAPP {
+
+  def main(args: Array[String]): Unit = {
+
+    //  println("hello")
+    val url="jdbc:mysql://172.18.10.154:3306/peacedb?useUnicode=true&characterEncoding=UTF8&useSSL=false"
+    //设置mysql jdbc连接串，最后要加上useSSL=false，不然执行时候会报错拒绝连接，不清楚是否因为mysql 8的缘故
+    val username="root"
+    val password="root"
+    //mysql用户名和密码
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    //导入mysql driver，此处用com.mysql.jdbc.Driver的话会提示已经过时，并建议用com.mysql.cj.jdbc.Driver
+    ConnectionPool.singleton(url,username,password)
+    连接mysql
+    implicit val session = AutoSession
+      sql"""
+        create table if not exists user (
+        id int,
+        name varchar(64),
+        age int
+        )
+      """.execute.apply()
+    //执行建表语句，如果exist则跳过
+   // Seq((1,"张三",20),(2,"李四",25),(3,"王五",30)) foreach { user =>
+  //    sql"insert into user (id,name, age) values (${user._1}, ${user._2},${user._3})".update.apply()
+  //  }
+    //执行插入语句，每行设置成一个tuple
+    case class Member(id:Int,name:String,age:Int)
+    val allColumns = (rs: WrappedResultSet) => Member(
+      id = rs.int("id"),
+      name = rs.string("name"),
+      age = rs.int("age"))
+     //设置一个Member类，保存查询的数据
+    val members: List[Member] = sql"select * from user".map(rs => allColumns(rs)).list.apply()
+    //设置一个Member list，保存查询的所有数据
+    for(member <- members){
+          println(member.id+","+member.name+","+member.age)
+
+    }
+    //依次打出所有数据
+  }
+}
